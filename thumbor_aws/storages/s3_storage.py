@@ -1,14 +1,16 @@
 # coding: utf-8
 
+import os
+
 import calendar
 from datetime import datetime, timedelta
-import hashlib
 from json import loads, dumps
 
 from os.path import splitext
 
 from thumbor.storages import BaseStorage
 from thumbor.utils import logger
+from thumbor.engines import BaseEngine
 
 from boto.s3.bucket import Bucket
 from boto.s3.key import Key
@@ -34,6 +36,7 @@ class Storage(BaseStorage):
 
         file_key = Key(self.storage)
         file_key.key = file_abspath
+        file_key.content_type = BaseEngine.get_mimetype(bytes) or 'application/octet-stream'
 
         file_key.set_contents_from_string(bytes,
                                           encrypt_key=self.context.config.get('S3_STORAGE_SSE', default=False),
@@ -119,9 +122,12 @@ class Storage(BaseStorage):
         return True
 
     def normalize_path(self, path):
-        digest = hashlib.sha1(path.encode('utf-8')).hexdigest()
-        today = datetime.now()
-        return "{:s}/{:d}/{:0>2d}/{:s}".format(self.context.request_handler.get_body_argument('entity', "other"), today.year, today.month, digest)
+        # digest = hashlib.sha1(path.encode('utf-8')).hexdigest()
+        # today = datetime.now()
+        # return "{:s}/{:d}/{:0>2d}/{:s}".format(self.context.request_handler.get_body_argument('entity', "other"), today.year, today.month, digest)
+        root_path = self.context.config.get('STORAGE_AWS_STORAGE_ROOT_PATH', default='thumbor/storage/')
+        path_segments = [path]
+        return os.path.join(root_path, *path_segments)
 
     def is_expired(self, key):
         if key:
